@@ -5,6 +5,7 @@ pub struct Output<'s> {
     buf: Vec<u8>,
     at: usize,
     auto_flush: bool,
+    bool_output: BoolOutput,
 }
 
 impl<'s> Output<'s> {
@@ -16,6 +17,7 @@ impl<'s> Output<'s> {
             buf: vec![0; Self::DEFAULT_BUF_SIZE],
             at: 0,
             auto_flush: false,
+            bool_output: BoolOutput::YesNoCaps,
         }
     }
 
@@ -25,6 +27,7 @@ impl<'s> Output<'s> {
             buf: vec![0; Self::DEFAULT_BUF_SIZE],
             at: 0,
             auto_flush: true,
+            bool_output: BoolOutput::YesNoCaps,
         }
     }
 
@@ -33,7 +36,6 @@ impl<'s> Output<'s> {
             self.output.write_all(&self.buf[..self.at]).unwrap();
             self.output.flush().unwrap();
             self.at = 0;
-            self.output.flush().expect("Couldn't flush output");
         }
     }
 
@@ -138,7 +140,7 @@ impl Writable for char {
     }
 }
 
-impl<T: Writable> Writable for [T] {
+impl<T: Writable> Writable for &[T] {
     fn write(&self, output: &mut Output) {
         output.print_iter_ref(self.iter());
     }
