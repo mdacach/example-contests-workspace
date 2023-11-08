@@ -1,0 +1,3 @@
+Tried to prove my solution and it exposed my swap-argument weakness. I should rewatch Algorithm's Live video on that.
+Though it was pretty nice to try to prove the solution first, and I was able to come up with it (and code it) really fast.
+Slowly getting up to speed with implementation it seems.
