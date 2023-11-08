@@ -1,0 +1,4 @@
+Didn't find it 1800-difficult :thinking: 
+Was a good opportunity to add a modular int helper, which still should be improved.
+
+Had the idea pretty fast, implementation was OK but I needed to implement the modular int first.
