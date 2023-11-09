@@ -1,0 +1,15 @@
+We must satisfy all of the m constraints. Let's look at one at a time.
+In order for (BITAND) [L, R] to be X, we need that each X bit is set at all [L, R]
+(otherwise the BITAND would turn off that bit, to never be turned on again).
+So we have the first observation:
+- For each bit on in X, it must be on in all of [L, R]
+Note that we can't say for sure about bits OFF in X. We need at least one of [L, R] to have it off, but we don't know who.
+
+So we can try to satisfy the constraints:
+For each constraint, mark the bits we need on in each number.
+This can be done rather nicely with delta encoding. required[x] how many times is this bit required to be on. if it's zero, it can be off.
+
+After that, we still have the off bits to consider. But because we have turned on all of the necessary bits, all of our queries must be correct (or bigger, because some other bit was also on in all of [L_i, R_i]). If a query is bigger, there's nothing we can do about it, and if all queries are correct, we don't need to change any other bits.
+So in the end, we don't need to change the 0-bits. Note that it's possible that some other solutions exist - you can turn _some_ 0-bits on and continue with a correct answer, but there's no incentive to do so - it suffices to only change the 1s.
+
+Rather interesting problem, had the idea quickly, needed to have range and queries in lib though.
