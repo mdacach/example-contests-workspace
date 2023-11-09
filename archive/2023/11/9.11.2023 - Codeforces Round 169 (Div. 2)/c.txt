@@ -1,0 +1,8 @@
+Problem: Reorder the values such that some range sum queries (summed) get the biggest possible.
+
+Had the idea fast, greedy algorithm, straightforward to see. Knew how to implement but didn't know enough Rust - BinaryHeap::iter() iterates in arbitrary order!
+There's a nightly iter which iterates in sorted order, so I couldn't use it.
+In retrospect, as I only wanted to sort the array, of course sorting it is better than creating a heap. So when that became clear, the code became better too.
+
+Did well in this problem - though about it fast, implemented it fast. Some more Rust fluency would help with iterator chaining and such, but it was already good.
+I still need to think more about overkills though - in this case a simple delta encoding works, but I could just as well just lazy seg this, and I didn't think of that. 
