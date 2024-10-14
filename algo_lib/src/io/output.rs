@@ -1,4 +1,37 @@
-use std::io::Write;
+use crate::collections::vec_ext::default::default_vec;
+use std::io::{stderr, Stderr, Write};
+
+#[derive(Copy, Clone)]
+pub enum BoolOutput {
+    YesNo,
+    YesNoCaps,
+    PossibleImpossible,
+    Custom(&'static str, &'static str),
+}
+
+impl BoolOutput {
+    pub fn output(&self, output: &mut Output, val: bool) {
+        (if val { self.yes() } else { self.no() }).write(output);
+    }
+
+    fn yes(&self) -> &str {
+        match self {
+            BoolOutput::YesNo => "Yes",
+            BoolOutput::YesNoCaps => "YES",
+            BoolOutput::PossibleImpossible => "Possible",
+            BoolOutput::Custom(yes, _) => yes,
+        }
+    }
+
+    fn no(&self) -> &str {
+        match self {
+            BoolOutput::YesNo => "No",
+            BoolOutput::YesNoCaps => "NO",
+            BoolOutput::PossibleImpossible => "Impossible",
+            BoolOutput::Custom(_, no) => no,
+        }
+    }
+}
 
 pub struct Output<'s> {
     output: &'s mut dyn Write,
@@ -14,7 +47,7 @@ impl<'s> Output<'s> {
     pub fn new(output: &'s mut dyn Write) -> Self {
         Self {
             output,
-            buf: vec![0; Self::DEFAULT_BUF_SIZE],
+            buf: default_vec(Self::DEFAULT_BUF_SIZE),
             at: 0,
             auto_flush: false,
             bool_output: BoolOutput::YesNoCaps,
@@ -24,7 +57,7 @@ impl<'s> Output<'s> {
     pub fn new_with_auto_flush(output: &'s mut dyn Write) -> Self {
         Self {
             output,
-            buf: vec![0; Self::DEFAULT_BUF_SIZE],
+            buf: default_vec(Self::DEFAULT_BUF_SIZE),
             at: 0,
             auto_flush: true,
             bool_output: BoolOutput::YesNoCaps,
@@ -41,11 +74,13 @@ impl<'s> Output<'s> {
 
     pub fn print<T: Writable>(&mut self, s: T) {
         s.write(self);
+        self.maybe_flush();
     }
 
     pub fn print_line<T: Writable>(&mut self, s: T) {
         self.print(s);
         self.put(b'\n');
+        self.maybe_flush();
     }
 
     pub fn put(&mut self, b: u8) {
@@ -91,6 +126,10 @@ impl<'s> Output<'s> {
             }
             e.write(self);
         }
+    }
+
+    pub fn set_bool_output(&mut self, bool_output: BoolOutput) {
+        self.bool_output = bool_output;
     }
 }
 
@@ -140,7 +179,7 @@ impl Writable for char {
     }
 }
 
-impl<T: Writable> Writable for &[T] {
+impl<T: Writable> Writable for [T] {
     fn write(&self, output: &mut Output) {
         output.print_iter_ref(self.iter());
     }
@@ -162,6 +201,10 @@ impl<T: Writable> Writable for Vec<T> {
     fn write(&self, output: &mut Output) {
         self.as_slice().write(output);
     }
+}
+
+impl Writable for () {
+    fn write(&self, _output: &mut Output) {}
 }
 
 macro_rules! write_to_string {
@@ -197,6 +240,7 @@ tuple_writable! {T U:1 V:2 X:3}
 tuple_writable! {T U:1 V:2 X:3 Y:4}
 tuple_writable! {T U:1 V:2 X:3 Y:4 Z:5}
 tuple_writable! {T U:1 V:2 X:3 Y:4 Z:5 A:6}
+tuple_writable! {T U:1 V:2 X:3 Y:4 Z:5 A:6 B:7}
 
 impl<T: Writable> Writable for Option<T> {
     fn write(&self, output: &mut Output) {
@@ -204,5 +248,22 @@ impl<T: Writable> Writable for Option<T> {
             None => (-1).write(output),
             Some(t) => t.write(output),
         }
+    }
+}
+
+impl Writable for bool {
+    fn write(&self, output: &mut Output) {
+        let bool_output = output.bool_output;
+        bool_output.output(output, *self)
+    }
+}
+
+static mut ERR: Option<Stderr> = None;
+pub fn err() -> Output<'static> {
+    unsafe {
+        if ERR.is_none() {
+            ERR = Some(stderr());
+        }
+        Output::new_with_auto_flush(ERR.as_mut().unwrap())
     }
 }

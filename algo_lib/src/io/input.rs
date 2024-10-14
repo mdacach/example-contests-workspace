@@ -1,13 +1,5 @@
-use crate::numbers::num_traits::add_sub::AddSub;
-use crate::numbers::num_traits::from_u8::FromU8;
-use crate::numbers::num_traits::mul_div_rem::Multable;
-use crate::numbers::num_traits::sign::IsSigned;
-use crate::numbers::num_traits::zero_one::ZeroOne;
-use crate::when;
-use std::collections::VecDeque;
-use std::fmt::Display;
+use crate::collections::vec_ext::default::default_vec;
 use std::io::Read;
-use std::str::FromStr;
 
 pub struct Input<'s> {
     input: &'s mut dyn Read,
@@ -42,7 +34,7 @@ impl<'s> Input<'s> {
     pub fn new(input: &'s mut dyn Read) -> Self {
         Self {
             input,
-            buf: vec![0; Self::DEFAULT_BUF_SIZE],
+            buf: default_vec(Self::DEFAULT_BUF_SIZE),
             at: 0,
             buf_read: 0,
         }
@@ -51,7 +43,7 @@ impl<'s> Input<'s> {
     pub fn new_with_size(input: &'s mut dyn Read, buf_size: usize) -> Self {
         Self {
             input,
-            buf: vec![0; buf_size],
+            buf: default_vec(buf_size),
             at: 0,
             buf_read: 0,
         }
@@ -124,35 +116,6 @@ impl<'s> Input<'s> {
         res
     }
 
-    fn read_string(&mut self) -> String {
-        match self.next_token() {
-            None => {
-                panic!("Input exhausted");
-            }
-            Some(res) => unsafe { String::from_utf8_unchecked(res) },
-        }
-    }
-
-    pub fn read_line(&mut self) -> String {
-        let mut res = String::new();
-        while let Some(c) = self.get() {
-            if c == b'\n' {
-                break;
-            }
-            res.push(c.into());
-        }
-        res
-    }
-
-    fn read_integer<T: FromStr>(&mut self) -> T
-        where
-            <T as FromStr>::Err: Debug,
-    {
-        let res = self.read_string();
-        res.parse::<T>().unwrap()
-    }
-
-
     pub fn read_char(&mut self) -> char {
         self.skip_whitespace();
         self.get().unwrap().into()
@@ -173,87 +136,6 @@ impl<'s> Input<'s> {
         } else {
             true
         }
-    }
-
-    pub fn parse(&mut self, pattern: &str, special: char) -> VecDeque<Vec<u8>> {
-        let mut res = VecDeque::new();
-        let mut last_special = false;
-
-        fn parse_special(input: &mut Input, c: char) -> Vec<u8> {
-            let mut cur = Vec::new();
-            loop {
-                let next = input.get();
-                if c == '\n' {
-                    if let Some(next) = next {
-                        match next {
-                            b'\r' => {
-                                if input.peek() == Some(b'\n') {
-                                    input.get();
-                                }
-                                break;
-                            }
-                            b'\n' => break,
-                            _ => cur.push(next),
-                        }
-                    } else {
-                        break;
-                    }
-                } else {
-                    let next = next.unwrap();
-                    if next == c as u8 {
-                        break;
-                    } else {
-                        cur.push(next);
-                    }
-                }
-            }
-            cur
-        }
-
-        for c in pattern.chars() {
-            if c == special {
-                assert!(!last_special);
-                last_special = true;
-            } else {
-                if last_special {
-                    res.push_back(parse_special(self, c));
-                } else {
-                    let next = self.get();
-                    if c == '\n' {
-                        if let Some(next) = next {
-                            if next == b'\r' {
-                                if self.peek() == Some(b'\n') {
-                                    self.get();
-                                }
-                            } else {
-                                assert_eq!(next, b'\n');
-                            }
-                        }
-                    } else {
-                        assert_eq!(c as u8, next.unwrap());
-                    }
-                }
-                last_special = false;
-            }
-        }
-        if last_special {
-            res.push_back(parse_special(self, '\n'));
-        }
-        res
-    }
-}
-
-pub struct InputIterator<'t, 's: 't, T: Readable + 't + 's> {
-    input: &'t mut Input<'s>,
-    phantom: PhantomData<T>,
-}
-
-impl<'t, 's: 't, T: Readable + 't + 's> Iterator for InputIterator<'t, 's, T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.input.skip_whitespace();
-        self.input.peek().map(|_| self.input.read())
     }
 }
 
@@ -278,7 +160,41 @@ macro_rules! read_integer {
     ($($t:ident)+) => {$(
         impl Readable for $t {
             fn read(input: &mut Input) -> Self {
-                input.read_integer()
+                input.skip_whitespace();
+                let mut c = input.get().unwrap();
+                let sgn = match c {
+                    b'-' => {
+                        c = input.get().unwrap();
+                        true
+                    }
+                    b'+' => {
+                        c = input.get().unwrap();
+                        false
+                    }
+                    _ => false,
+                };
+                let mut res = 0;
+                loop {
+                    assert!(c.is_ascii_digit());
+                    res *= 10;
+                    let d = (c - b'0') as $t;
+                    if sgn {
+                        res -= d;
+                    } else {
+                        res += d;
+                    }
+                    match input.get() {
+                        None => break,
+                        Some(ch) => {
+                            if ch.is_ascii_whitespace() {
+                                break;
+                            } else {
+                                c = ch;
+                            }
+                        }
+                    }
+                }
+                res
             }
         }
     )+};
@@ -309,23 +225,18 @@ tuple_readable! {T U V X Y Z A B C D}
 tuple_readable! {T U V X Y Z A B C D E}
 tuple_readable! {T U V X Y Z A B C D E F}
 
-#[macro_export]
-macro_rules! scan {
-    ($input: expr, $s: expr) => {
-        $crate::scan!($input, s,);
-    };
-    ($input: expr, $s: expr $(, $v:ident: $t: ty)* $(,)?) => {
-        $crate::scan!($input, $s, '@', $($v: $t,)*);
-    };
-    ($input: expr, $s: expr, $sp: expr $(, $v:ident: $t: ty)* $(,)?) => {
-        let mut res = $input.parse($s, $sp);
-        $(
-            let cur = res.pop_front().unwrap();
-            let len = cur.len();
-            let mut slice = cur.as_slice();
-            let mut input = Input::new_with_size(&mut slice, len);
-            let $v: $t = input.read();
-            assert!(input.is_exhausted());
-        )*
-    };
+impl Read for Input<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.at == self.buf_read {
+            self.input.read(buf)
+        } else {
+            let mut i = 0;
+            while i < buf.len() && self.at < self.buf_read {
+                buf[i] = self.buf[self.at];
+                i += 1;
+                self.at += 1;
+            }
+            Ok(i)
+        }
+    }
 }

@@ -6,6 +6,7 @@ use std::collections::Bound;
 use std::mem::swap;
 use std::ops::{Deref, DerefMut, RangeBounds};
 
+#[derive(Debug)]
 pub struct TreapNode<P> {
     inner: Option<TreapNodeInner<P>>,
 }
@@ -24,6 +25,7 @@ impl<P> DerefMut for TreapNode<P> {
     }
 }
 
+#[derive(Debug)]
 pub struct TreapNodeInner<P> {
     priority: u64,
     payload: P,
@@ -379,6 +381,7 @@ impl<Data, InnerPayload: Payload + Replaceable<Data>> Replaceable<Data>
     }
 }
 
+#[derive(Debug)]
 pub struct KeyPayload<Key: Ord, InnerPayload: Payload> {
     pub inner: InnerPayload,
     pub key: Key,
